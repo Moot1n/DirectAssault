@@ -1,0 +1,37 @@
+[gd_scene load_steps=6 format=3 uid="uid://b32gitcodwgod"]
+
+[ext_resource type="Script" uid="uid://4dgyraoskajl" path="res://tests/player_determinism.gd" id="1_utkg3"]
+[ext_resource type="Script" uid="uid://b74vjtt1a5otq" path="res://multiplayer/entity_node.gd" id="3_rj6ur"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_sglur"]
+size = Vector3(1, 2, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_bls4j"]
+size = Vector3(1, 2, 1)
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_abrql"]
+properties/0/path = NodePath(".:player_id")
+properties/0/spawn = true
+properties/0/replication_mode = 0
+properties/1/path = NodePath(".:position")
+properties/1/spawn = true
+properties/1/replication_mode = 0
+
+[node name="CharacterBody3D" type="CharacterBody3D"]
+script = ExtResource("1_utkg3")
+
+[node name="Input" type="Node" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_sglur")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_bls4j")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_abrql")
+
+[node name="EntityNode" type="Node" parent="." node_paths=PackedStringArray("root_node")]
+script = ExtResource("3_rj6ur")
+root_node = NodePath("..")
+replicate_properties = Array[String](["last_recieved_input", "position", "velocity"])

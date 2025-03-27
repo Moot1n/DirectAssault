@@ -1,0 +1,42 @@
+[gd_scene load_steps=7 format=3 uid="uid://cel8evphriotd"]
+
+[ext_resource type="Script" uid="uid://c4qg1h8jn5kfs" path="res://entities/player/player.gd" id="1_symyc"]
+[ext_resource type="Script" uid="uid://cpt32kuhxr5b7" path="res://entities/player/player_input.gd" id="2_abrql"]
+[ext_resource type="Script" uid="uid://b74vjtt1a5otq" path="res://multiplayer/entity_node.gd" id="3_sglur"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_abrql"]
+size = Vector3(1, 2, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_abrql"]
+size = Vector3(1, 2, 1)
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_abrql"]
+properties/0/path = NodePath(".:player_id")
+properties/0/spawn = true
+properties/0/replication_mode = 0
+properties/1/path = NodePath(".:position")
+properties/1/spawn = true
+properties/1/replication_mode = 0
+
+[node name="CharacterBody3D" type="CharacterBody3D"]
+script = ExtResource("1_symyc")
+
+[node name="Input" type="Node" parent="."]
+script = ExtResource("2_abrql")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_abrql")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_abrql")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 2, 3)
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_abrql")
+
+[node name="EntityNode" type="Node" parent="." node_paths=PackedStringArray("root_node")]
+script = ExtResource("3_sglur")
+root_node = NodePath("..")
+replicate_properties = Array[String](["last_recieved_input", "position"])

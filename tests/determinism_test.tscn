@@ -1,0 +1,36 @@
+[gd_scene load_steps=5 format=3 uid="uid://c80npb7fp244e"]
+
+[ext_resource type="Script" uid="uid://bm57glyovdhx2" path="res://tests/determinism_test.gd" id="1_ltnh3"]
+[ext_resource type="Texture2D" uid="uid://c07wrx4iwvb3x" path="res://textures/brickfloor2.png" id="2_610ur"]
+[ext_resource type="PackedScene" uid="uid://b32gitcodwgod" path="res://tests/player_determinism.tscn" id="3_7i66d"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qo0ko"]
+albedo_texture = ExtResource("2_610ur")
+uv1_triplanar = true
+
+[node name="TestLevel" type="Node3D" node_paths=PackedStringArray("p1", "p2")]
+script = ExtResource("1_ltnh3")
+p1 = NodePath("CharacterBody3D")
+p2 = NodePath("CharacterBody3D2")
+
+[node name="CSGCombiner3D" type="CSGCombiner3D" parent="."]
+use_collision = true
+
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGCombiner3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.0500002)
+size = Vector3(16, 1, 16.1)
+material = SubResource("StandardMaterial3D_qo0ko")
+
+[node name="CharacterBody3D" parent="." instance=ExtResource("3_7i66d")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 2, 1)
+collision_layer = 0
+
+[node name="CharacterBody3D2" parent="." instance=ExtResource("3_7i66d")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 2, 1)
+collision_layer = 0
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="CharacterBody3D2"]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 0, 0)
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 5, 9)
