@@ -21,49 +21,65 @@ func _ready() -> void:
 		$Camera3D.current = true;
 		if !multiplayer.is_server():
 			entity_node.reconcile.connect(reconciliate)
-	set_physics_process(multiplayer.is_server())
+			Performance.add_custom_monitor("game/interp_time", entity_node.get_interp_time)
+			Performance.add_custom_monitor("game/error", entity_node.get_error)
+	#set_physics_process(multiplayer.is_server())
 	
-		
 
 func _process(delta: float) -> void:
 	_process_delta = delta;
 	
 	if !multiplayer.is_server(): return;
-	
 	timer+=delta;
 	while timer >= entity_node.snapshot_time:
 		
 		entity_node.send()
 		timer -= entity_node.snapshot_time
+		
 	if !input.sv_input_queue.is_empty():
-		for client_input in input.sv_input_queue:
+		for encoded_input in input.sv_input_queue:
+			#FIXME: THIS METHOD APPLIES IN WRONG ORDER!!!
+			var client_input = input.InputStruct.new()
+			client_input.decode_delta(encoded_input,input.sv_dummy_input_dict)
+			
+			input.net_input_flags = client_input.input_flags;
+			input.net_look_angles = client_input.look_angles;
 			if client_input.input_tick > last_recieved_input:
+				if client_input.input_tick -last_recieved_input >1:
+					print("SERVER: MISSED")
+				input.sv_dummy_input_dict = client_input.encode()
 				
 				last_recieved_input = client_input.input_tick;
-				simulate_input(input.command_time,client_input)
+				#if player_id != 1:
+					#print(input.sv_dummy_input_dict)
+					#print("SERVER SIMULATING  " + str(input.sv_dummy_input_dict))
+				simulate_input(input.server_tick_time,client_input)
 		input.sv_input_queue.clear()
-	
 
 func reconciliate():
 	if !multiplayer.is_server():
+		var last_recvd =  input.input_hist[last_recieved_input%input.input_hist_size];
+		if last_recvd:
+			input.cl_dummy_input_dict = input.input_hist[last_recieved_input%input.input_hist_size].encode()
 		var last = -1;
 		for i in range(last_recieved_input, input.last_sent_input):
 			var client_input = input.input_hist[i%input.input_hist_size]
 			if client_input:
 				
 				if client_input.input_tick > last_recieved_input:
-					if client_input.input_tick-last !=1 && last!=-1:
-						print("WARN!!!!")
-						print("SIMMING %d" % [client_input.input_tick])
-						print("LAST %d" % [last])
+					#if client_input.input_tick-last !=1 && last!=-1:
+						#print("WARN!!!!")
+						#print("SIMMING %d" % [client_input.input_tick])
+						#print("LAST %d" % [last])
 					last = client_input.input_tick;
 					#print("SIMMING %d" % [client_input.input_tick])
 					#print("last tick rcv %d last tick sent %d " %[last_recieved_input, input.client_tick])
 					#print("rtt %f " %[(input.client_tick-last_recieved_input)*input.command_time])
-					simulate_input(input.command_time, client_input)
+					simulate_input(input.server_tick_time, client_input)
 
 func _physics_process(delta: float) -> void:
-	pass;
+	if !multiplayer.is_server(): return;
+	#entity_node.send()
 
 func simulate_input(delta: float, client_input):
 	var input_flags = client_input.input_flags

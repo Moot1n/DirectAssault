@@ -16,36 +16,47 @@ var tick_lerp_to:int
 var last_server_tick:int = 0
 var interp_current_tick:int = 0
 var snapshot_buffer_ticks = 4;
-var snapshot_time:float = 1.0/30.0
-var snapshot_time_adjust:float = 0.5*snapshot_time
+var snapshot_time:float = 1.0/30
+var snapshot_time_adjust:float = 1*snapshot_time
 var interp_tick_time = snapshot_time;
 var interp_time = 0;
-
+var tickrate = 0;
+var time_scale = 1.0;
+var error = 0
 signal reconcile
 func _ready() -> void:
+	tickrate = Engine.physics_ticks_per_second
 	for pid in range(len(replicate_properties)):
 		property_to_id.set(replicate_properties[pid],pid)
 		id_to_property.set(pid, replicate_properties[pid])
 	set_process(!multiplayer.is_server())
 	set_physics_process(!multiplayer.is_server())
+		
+func get_interp_time() -> float:
+	return time_scale*10000;
+func get_error():
+	return error;
 
 func _process(delta: float) -> void:
 	#var popped_property_table = data_table_hist.pop_front()
 	#var popped_pt_tick = data_table_tick.pop_front()
 	#if popped_property_table:
 		#set_properties(popped_property_table)
-	interp_time+=delta;
+	
+	interp_time+=delta*time_scale;
+	
 	while interp_time >= interp_tick_time:
 		interp_time -= interp_tick_time;
-		interp_tick_time = snapshot_time;
-		if len(data_table_hist) >= snapshot_buffer_ticks+3:
+		#interp_time = delta;
+
+		if len(data_table_hist) >= snapshot_buffer_ticks+40000:
 			data_table_hist.resize(snapshot_buffer_ticks);
 			data_table_tick.resize(snapshot_buffer_ticks)
 		# Too far behind speed up interp or too far ahead slow down
-		if len(data_table_hist) > snapshot_buffer_ticks:
-			interp_tick_time-=snapshot_time_adjust;
-		elif len(data_table_hist) < snapshot_buffer_ticks:
-			interp_tick_time+=snapshot_time_adjust;
+		
+		#interp_tick_time-=snapshot_time_adjust;
+		#print(len(data_table_hist))
+		#if len(data_table_hist) < 1: print(len(data_table_hist))
 		var popped_property_table = data_table_hist.pop_front()
 		var popped_pt_tick = data_table_tick.pop_front()
 		if popped_property_table:
@@ -58,14 +69,28 @@ func _process(delta: float) -> void:
 			state_lerp_to = make_data_table()
 			tick_lerp_to = popped_pt_tick;
 			interp_current_tick+=1;
-			#if interp_time < interp_tick_time:
 				#var interp_distance = min(tick_lerp_to-tick_lerp_from,3);
 				#interp_tick_time*interp_distance
 				#break;
-	lerp_set_properties(state_lerp_from, state_lerp_to, interp_time/interp_tick_time)
-		
+	error = (len(data_table_hist)-snapshot_buffer_ticks);
+	var target_time_scale = 1+error*0.005;
+	if time_scale >  target_time_scale:
+		time_scale -= 0.0001
+		if time_scale < target_time_scale:
+			time_scale = target_time_scale
+	elif time_scale < target_time_scale:
+		time_scale += 0.0001
+		if time_scale > target_time_scale:
+			time_scale = target_time_scale
+	#time_scale = 1+error*0.001	
+	#print(time_scale)
+	if root_node.input.is_auth:
+		$"../Control".update_graph(interp_time/interp_tick_time)
+	if interp_time/interp_tick_time >= 0 && interp_time/interp_tick_time <= 1:
+		lerp_set_properties(state_lerp_from, state_lerp_to, interp_time/interp_tick_time)
+	else:
+		print("OUT!")
 			
-	
 func make_data_table() -> Dictionary:
 	var data_table: Dictionary;
 	for property in replicate_properties:
@@ -82,6 +107,7 @@ func send():
 func send_data_table(encdoded_properties: Dictionary, server_tick:int):
 	#Last server tick was too far ahead of interpolation tick
 	if server_tick > last_server_tick:
+		
 		data_table_hist.push_back(encdoded_properties);
 		data_table_tick.push_back(server_tick);
 		last_server_tick = server_tick
